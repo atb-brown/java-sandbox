@@ -20,3 +20,8 @@ Some things I learned during my research:
     * The above example was a little out of
       date. [I had some compilation and runtime errors](https://stackoverflow.com/questions/66701269/resteasyclient-incompatibleclasschangeerror-resteasyproviderfactory-getcontextd)
       .
+
+To run the tests, first run Keycloak on port 8180; you can do so with Docker:
+```
+docker run -p 8180:8080 -e KEYCLOAK_USER=admin -e KEYCLOAK_PASSWORD=admin jboss/keycloak
+```
