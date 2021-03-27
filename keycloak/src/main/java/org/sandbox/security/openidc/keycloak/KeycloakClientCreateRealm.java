@@ -3,6 +3,8 @@ package org.sandbox.security.openidc.keycloak;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -15,6 +17,7 @@ import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.ProtocolMapperRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -78,6 +81,9 @@ public class KeycloakClientCreateRealm {
     clientRep.setDirectAccessGrantsEnabled(true);
     clientRep.setServiceAccountsEnabled(true);
     clientRep.setEnabled(true);
+    clientRep.setProtocolMappers(
+        Arrays.asList(
+            attrClaimMapper("username", "String"), propClaimMapper("test-claim", "String")));
 
     final RealmResource realmResource = keycloak.realm(realm);
     Response response = realmResource.clients().create(clientRep);
@@ -106,6 +112,8 @@ public class KeycloakClientCreateRealm {
     userRep.setCredentials(Collections.singletonList(credRep));
     userRep.setEnabled(true);
 
+    userRep.setAttributes(Map.of("test-claim", Collections.singletonList("Test Claim Value")));
+
     realmResource.users().create(userRep);
 
     // Add client role to user
@@ -119,5 +127,63 @@ public class KeycloakClientCreateRealm {
             realm, clientId, clientRep.getSecret(), username, userPassword);
 
     return response.getStatus() == 201 && jwt.getToken() != null;
+  }
+
+  /**
+   * Create a protocol mapper for a user property.
+   *
+   * @param claim The {@link String} mapped claim's name/key.
+   * @param type The {@link String} json type of the claim's value.
+   * @return the configured {@link ProtocolMapperRepresentation}.
+   */
+  private static ProtocolMapperRepresentation propClaimMapper(
+      final String claim, final String type) {
+    ProtocolMapperRepresentation protocolMapper = new ProtocolMapperRepresentation();
+    protocolMapper.setProtocol("openid-connect");
+    // This is what makes it map a user property.
+    protocolMapper.setProtocolMapper("oidc-usermodel-property-mapper");
+    protocolMapper.setName(claim);
+    protocolMapper.setConfig(
+        new HashMap<>() {
+          {
+            put("jsonType.label", type);
+            put("access.token.claim", "true");
+            put("id.token.claim", "true");
+            put("userinfo.token.claim", "true");
+            put("user.attribute", claim);
+            put("claim.name", claim);
+          }
+        });
+
+    return protocolMapper;
+  }
+
+  /**
+   * Create a protocol mapper for a user property.
+   *
+   * @param claim The {@link String} mapped claim's name/key.
+   * @param type The {@link String} json type of the claim's value.
+   * @return the configured {@link ProtocolMapperRepresentation}.
+   */
+  private static ProtocolMapperRepresentation attrClaimMapper(
+      final String claim, final String type) {
+    ProtocolMapperRepresentation protocolMapper = new ProtocolMapperRepresentation();
+    protocolMapper.setProtocol("openid-connect");
+    // This is what makes it map a user attribute.
+    protocolMapper.setProtocolMapper("oidc-usermodel-attribute-mapper");
+    protocolMapper.setName(claim);
+    protocolMapper.setConfig(
+        new HashMap<>() {
+          {
+            put("jsonType.label", type);
+            put("access.token.claim", "true");
+            put("id.token.claim", "true");
+            put("userinfo.token.claim", "true");
+            put("user.attribute", claim);
+            put("claim.name", claim);
+          }
+        });
+
+    return protocolMapper;
   }
 }
